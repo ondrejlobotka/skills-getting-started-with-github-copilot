@@ -20,12 +20,53 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft = details.max_participants - details.participants.length;
 
+        const participantsList = details.participants.length > 0
+          ? `<ul>${details.participants.map(p => `
+            <li>
+              <span class="participant-name">${p}</span>
+              <button class="delete-participant" data-activity="${name}" data-email="${p}" title="Remove ${p}">×</button>
+            </li>
+          `).join('')}</ul>`
+          : '<p class="no-participants"><em>No participants yet</em></p>';
+
         activityCard.innerHTML = `
           <h4>${name}</h4>
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          <div class="participants-section">
+            <strong>Participants:</strong>
+            ${participantsList}
+          </div>
         `;
+
+        // Add event listeners to delete buttons
+        activityCard.querySelectorAll('.delete-participant').forEach(button => {
+          button.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const activity = button.getAttribute('data-activity');
+            const email = button.getAttribute('data-email');
+            
+            if (confirm(`Are you sure you want to unregister ${email} from ${activity}?`)) {
+              try {
+                const response = await fetch(
+                  `/activities/${encodeURIComponent(activity)}/unregister?email=${encodeURIComponent(email)}`,
+                  { method: 'DELETE' }
+                );
+                
+                if (response.ok) {
+                  // Refresh activities to show updated list
+                  fetchActivities();
+                } else {
+                  alert('Failed to unregister participant');
+                }
+              } catch (error) {
+                console.error('Error unregistering participant:', error);
+                alert('Failed to unregister participant');
+              }
+            }
+          });
+        });
 
         activitiesList.appendChild(activityCard);
 
@@ -62,6 +103,8 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        // Refresh activities to show updated participant list
+        fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
